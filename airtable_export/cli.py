@@ -1,12 +1,13 @@
-import click
-import httpx
-from httpx import HTTPError
 import json as json_
 import pathlib
-from urllib.parse import quote, urlencode
-import sqlite_utils
 import time
+from urllib.parse import quote, urlencode
+
+import click
+import httpx
+import sqlite_utils
 import yaml as yaml_
+from httpx import HTTPError
 
 
 @click.command()
@@ -43,6 +44,7 @@ import yaml as yaml_
     is_flag=True,
     help="Save Airtable schema to output_path/_schema.json",
 )
+@click.option("--all", is_flag=True, help="")
 def cli(
     output_path,
     base_id,
@@ -56,17 +58,21 @@ def cli(
     yaml,
     sqlite,
     schema,
+    all_bases,
 ):
     "Export Airtable data to YAML file on disk"
     output = pathlib.Path(output_path)
     output.mkdir(parents=True, exist_ok=True)
     if not json and not ndjson and not yaml and not sqlite:
         yaml = True
-    write_batch = lambda table, batch: None
+    write_batch = lambda table, batch: None  # noqa: E731
     if sqlite:
         db = sqlite_utils.Database(sqlite)
-        write_batch = lambda table, batch: db[table].insert_all(
-            batch, pk="airtable_id", replace=True, alter=True
+        write_batch = lambda table, batch: db[table].insert_all(  # noqa: E731  # type: ignore
+            batch,
+            pk="airtable_id",  # type: ignore
+            replace=True,  # type: ignore
+            alter=True,  # type: ignore
         )
     if not tables or schema:
         # Fetch all tables
@@ -94,7 +100,7 @@ def cli(
                     write_batch(table, db_batch)
                     db_batch = []
         except HTTPError as exc:
-            raise click.ClickException(exc)
+            raise click.ClickException(exc)  # type: ignore
         write_batch(table, db_batch)
         filenames = []
         if json:
@@ -123,12 +129,19 @@ def cli(
             )
 
 
+def _api_request(url: str, api_key: str):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+    }
+    response = httpx.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
 def list_tables(base_id, api_key, user_agent=None):
-    url = f"https://api.airtable.com/v0/meta/bases/{base_id}/tables"
-    headers = {"Authorization": "Bearer {}".format(api_key)}
-    if user_agent is not None:
-        headers["user-agent"] = user_agent
-    return httpx.get(url, headers=headers).json()
+    return _api_request(
+        f"https://api.airtable.com/v0/meta/bases/{base_id}/tables", api_key
+    )
 
 
 def all_records(base_id, table, api_key, http_read_timeout, sleep=0.2, user_agent=None):
@@ -156,6 +169,10 @@ def all_records(base_id, table, api_key, http_read_timeout, sleep=0.2, user_agen
         yield from data["records"]
         if offset and sleep:
             time.sleep(sleep)
+
+
+def backup_base(base_id: str, tables: str | None = None):
+    pass
 
 
 def str_representer(dumper, data):

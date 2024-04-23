@@ -1,0 +1,47 @@
+[project]
+name = "airtable-export"
+version = "0.1.0"
+
+authors = [{ name = "David Brownman", email = "beamneocube@gmail.com" }]
+description = "Quickly and painlessly dump all your Airtable schemas & data to JSON."
+readme = "README.md"
+license = { file = "LICENSE" }
+
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Testing",
+]
+# keywords = ["testing", "test-runner", "pytest"]
+
+dependencies = ["click==8.1.3", "httpx==0.27.0"]
+
+[project.optional-dependencies]
+# test = ["pytest==7.3.1", "responses==0.23.1"]
+release = ["twine==4.0.2", "build==0.10.0"]
+# ci = ["black==23.3.0", "pyright==1.1.309", "ruff==0.0.277"]
+
+[project.urls]
+"Homepage" = "https://github.com/xavdid/airtable-export"
+"Bug Tracker" = "https://github.com/xavdid/airtable-export/issues"
+"Author" = "https://xavd.id"
+"Changelog" = "https://github.com/xavdid/airtable-export/blob/main/CHANGELOG.md"
+
+[project.scripts]
+airtable-export = "airtable_export.cli_v2:cli"
+
+[build-system]
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"
+
+# needed so the LSP performs typechecking
+[tool.pyright]
+
+[tool.ruff]
+select = ["E", "F", "I001"] # defaults & isort
+ignore = ["E501"]
+unfixable = ["F401"]
