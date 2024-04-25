@@ -1,5 +1,5 @@
 [project]
-name = "airtable-export"
+name = "backup-airtable"
 version = "0.1.0"
 
 authors = [{ name = "David Brownman", email = "beamneocube@gmail.com" }]
@@ -21,18 +21,18 @@ classifiers = [
 dependencies = ["click==8.1.3", "httpx==0.27.0"]
 
 [project.optional-dependencies]
-# test = ["pytest==7.3.1", "responses==0.23.1"]
+test = ["pytest==7.3.1", "pytest-httpx==0.30.0", "pytest-freezer==0.4.8"]
 release = ["twine==4.0.2", "build==0.10.0"]
-# ci = ["black==23.3.0", "pyright==1.1.309", "ruff==0.0.277"]
+ci = ["pyright==1.1.359", "ruff==0.4.1"]
 
 [project.urls]
-"Homepage" = "https://github.com/xavdid/airtable-export"
-"Bug Tracker" = "https://github.com/xavdid/airtable-export/issues"
+"Homepage" = "https://github.com/xavdid/backup-airtable"
+"Bug Tracker" = "https://github.com/xavdid/backup-airtable/issues"
 "Author" = "https://xavd.id"
-"Changelog" = "https://github.com/xavdid/airtable-export/blob/main/CHANGELOG.md"
+"Changelog" = "https://github.com/xavdid/backup-airtable/blob/main/CHANGELOG.md"
 
 [project.scripts]
-airtable-export = "airtable_export.cli_v2:cli"
+backup-airtable = "backup_airtable.cli:cli"
 
 [build-system]
 requires = ["flit_core>=3.4"]
@@ -41,7 +41,7 @@ build-backend = "flit_core.buildapi"
 # needed so the LSP performs typechecking
 [tool.pyright]
 
-[tool.ruff]
+[tool.ruff.lint]
 select = ["E", "F", "I001"] # defaults & isort
 ignore = ["E501"]
 unfixable = ["F401"]
