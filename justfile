@@ -23,7 +23,7 @@ _require-venv:
     pyright -p pyproject.toml
 
 # perform all checks, but don't change any files
-@validate: lint typecheck
+@validate: test lint typecheck
 
 # run the full ci pipeline
 ci: && validate
