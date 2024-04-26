@@ -1,157 +1,178 @@
-# airtable-export
+# backup-airtable
 
-[![PyPI](https://img.shields.io/pypi/v/airtable-export.svg)](https://pypi.org/project/airtable-export/)
-[![Changelog](https://img.shields.io/github/v/release/simonw/airtable-export?include_prereleases&label=changelog)](https://github.com/simonw/airtable-export/releases)
-[![Tests](https://github.com/simonw/airtable-export/workflows/Test/badge.svg)](https://github.com/simonw/airtable-export/actions?query=workflow%3ATest)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/airtable-export/blob/master/LICENSE)
-
-Export Airtable data to files on disk
+Export your [Airtable](https://airtable.com/) data to JSON files. It exports both the table's schema and the records.
 
 ## Installation
 
-Install this tool using `pip`:
+The easiest way to run this is using [pipx](https://pypa.github.io/pipx/):
 
-    $ pip install airtable-export
+```shell
+pipx install backup-airtable
+```
+
+<!-- You can also use brew:
+
+```shell
+brew install ...
+``` -->
 
 ## Usage
 
-You will need to the following information:
+Once [authenticated](#authentication), running `backup-airtable` will immediately start downloading data. There are a few available options (viewable via `backup-airtable --help`):
 
-- Your Airtable base ID - this is a string starting with `app...`
-- Your Airtable personal access token - this is a string starting with `pat...`
-
-If you just want to export a subset of your tables you also need to know the names of those tables.
-
-You can export all of your data to a folder called `export/` by running the following:
-
-    airtable-export export base_id --key=key
-
-This example would files for each of your tables, for example: `export/table1.yml` and `export/table2.yml`.
-
-Rather than passing the API key using the `--key` option you can set it as an environment variable called `AIRTABLE_KEY`.
-
-To export only specified tables, pass their names as additional arguments:
-
-    airtable-export export base_id table1 table2 --key=key
-
-## Export options
-
-By default the tool exports your data as YAML.
-
-You can also export as JSON or as [newline delimited JSON](http://ndjson.org/) using the `--json` or `--ndjson` options:
-
-    airtable-export export base_id --key=key --ndjson
-
-You can pass multiple format options at once. This command will create a `.json`, `.yml` and `.ndjson` file for each exported table:
-
-    airtable-export export base_id \
-        --key=key --ndjson --yaml --json
-
-If you import all tables, or if you add the `--schema` option, a JSON schema for the base will be written to `output-dir/_schema.json`.
-
-### SQLite database export
-
-You can export tables to a SQLite database file using the `--sqlite database.db` option:
-
-    airtable-export export base_id \
-        --key=key --sqlite database.db
-
-This can be combined with other format options. If you only specify `--sqlite` the export directory argument will be ignored.
-
-The SQLite database will have a table created for each table you export. Those tables will have a primary key column called `airtable_id`.
-
-If you run this command against an existing SQLite database records with matching primary keys will be over-written by new records from the export.
-
-## Request options
-
-By default the tool uses [python-httpx](https://www.python-httpx.org)'s default configurations.
-
-You can override the `user-agent` using the `--user-agent` option:
-
-    airtable-export export base_id table1 table2 --key=key --user-agent "Airtable Export Robot"
-
-You can override the [timeout during a network read operation](https://www.python-httpx.org/advanced/#fine-tuning-the-configuration) using the `--http-read-timeout` option. If not set, this defaults to 5s.
-
-    airtable-export export base_id table1 table2 --key=key --http-read-timeout 60
-
-## Running this using GitHub Actions
-
-[GitHub Actions](https://github.com/features/actions) is GitHub's workflow automation product. You can use it to run `airtable-export` in order to back up your Airtable data to a GitHub repository. Doing this gives you a visible commit history of changes you make to your Airtable data - like [this one](https://github.com/natbat/rockybeaches/commits/main/airtable).
-
-To run this for your own Airtable database you'll first need to add the following secrets to your GitHub repository:
-
-<dl>
-  <dt>AIRTABLE_BASE_ID</dt>
-  <dd>The base ID, a string beginning `app...`</dd>
-  <dt>AIRTABLE_KEY</dt>
-  <dd>Your Airtable API key</dd>
-  <dt>AIRTABLE_TABLES</dt>
-  <dd>A space separated list of the Airtable tables that you want to backup. If any of these contain spaces you will need to enclose them in single quotes, e.g. <samp>'My table with spaces in the name' OtherTableWithNoSpaces</samp></dd>
-</dl>
-
-Once you have set those secrets, add the following as a file called `.github/workflows/backup-airtable.yml`:
-```yaml
-name: Backup Airtable
-
-on:
-  workflow_dispatch:
-  schedule:
-  - cron: '32 0 * * *'
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check out repo
-      uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
-    - uses: actions/cache@v2
-      name: Configure pip caching
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    - name: Install airtable-export
-      run: |
-        pip install airtable-export
-    - name: Backup Airtable to backups/
-      env:
-        AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
-        AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
-        AIRTABLE_TABLES: ${{ secrets.AIRTABLE_TABLES }}
-      run: |-
-        airtable-export backups $AIRTABLE_BASE_ID $AIRTABLE_TABLES -v
-    - name: Commit and push if it changed
-      run: |-
-        git config user.name "Automated"
-        git config user.email "actions@users.noreply.github.com"
-        git add -A
-        timestamp=$(date -u)
-        git commit -m "Latest data: ${timestamp}" || exit 0
-        git push
 ```
-This will run once a day (at 32 minutes past midnight UTC) and will also run if you manually click the "Run workflow" button, see [GitHub Actions: Manual triggers with workflow_dispatch](https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/).
+Usage: backup-airtable [OPTIONS] [BACKUP_DIRECTORY]
+
+  Save data from Airtable to a series of local JSON files / folders
+
+Options:
+  --version              Show the version and exit.
+  --ignore_table TEXT    Table id(s) to ignore when backing up.
+  --airtable-token TEXT  Airtable Access Token  [required]
+  --help                 Show this message and exit.
+```
+
+You'll likely only need `ignore_table` (which you can specify multiple times) to ignore specific tables from bases you otherwise want to include.
+
+### Examples
+
+- `backup-airtable`
+- `backup-airtable some_backup_folder`
+- `backup_airtable --ignore_table tbl123 --ignore_table tbl456`
+
+## Authentication
+
+You need to create a [personal access token](https://airtable.com/developers/web/guides/personal-access-tokens) to use this tool. It has the format `pat123.456`. They can be created at https://airtable.com/create/tokens.
+
+Ensure it has the following scopes:
+
+- `data.records:read`
+- `schema.bases:read`
+
+You can give it access to as many or as few bases as you'd like. Everything the token has access to will be backed up.
+
+### Supplying the Key
+
+You can make the key available in the environment as `AIRTABLE_TOKEN` or via the `--airtable-token` flag:
+
+- `AIRTABLE_TOKEN=pat123.456 backup-airtable`
+- `backup-airtable --airtable-token pat123.456`
+
+## Exported Data Format
+
+This tool creates folders for each base, each containing `records.json` and `schema.json`:
+
+```
+. (backup_directory)
+├── videogames/
+│   ├── games/
+│   │   ├── schema.json
+│   │   └── records.json
+│   └── playthroughs/
+│       ├── schema.json
+│       └── records.json
+└── tv/
+    ├── shows/
+    │   ├── schema.json
+    │   └── records.json
+    ├── seasons/
+    │   ├── schema.json
+    │   └── records.json
+    └── watches/
+        ├── schema.json
+        └── records.json
+```
+
+The contents of each file is the raw API response for [the table's schema](https://airtable.com/developers/web/api/get-base-schema) (which includes formula definitions):
+
+```json
+{
+  "fields": [
+    {
+      "id": "fldAReWzcSCy8lR6S",
+      "name": "Name",
+      "type": "singleLineText"
+    },
+    {
+      "id": "fldapjPtWVGLeVEz6",
+      "name": "Style",
+      "options": {
+        "choices": [
+          {
+            "color": "redLight2",
+            "id": "selpGtES7bVHWFO68",
+            "name": "Competitive"
+          },
+          {
+            "color": "blueLight2",
+            "id": "sel176WltZzGmNl3l",
+            "name": "Cooperative"
+          }
+        ]
+      },
+      "type": "singleSelect"
+    }
+  ],
+  "id": "tblvcNVpUk07pRxUQ",
+  "name": "Games",
+  "primaryFieldId": "fldAReWzcSCy8lR6S",
+  "views": [
+    {
+      "id": "viw2PrDfjQquMoTKb",
+      "name": "Main View",
+      "type": "grid"
+    },
+    {
+      "id": "viweVcA0peE3M3zag",
+      "name": "Add a New Game",
+      "type": "form"
+    }
+  ]
+}
+```
+
+and the [records themselves](https://airtable.com/developers/web/api/list-records):
+
+```json
+[
+  {
+    "createdTime": "2017-09-19T06:21:48.000Z",
+    "fields": {
+      "Name": "Libertalia: Winds of Galecrest",
+      "Style": "Competitive"
+    },
+    "id": "rec0wIiSnMutUfoTY"
+  },
+  {
+    "createdTime": "2023-09-19T06:20:20.000Z",
+    "fields": {
+      "Name": "Hanabi",
+      "Style": "Cooperative"
+    },
+    "id": "rec48RFqGw8hAmZFY"
+  }
+]
+```
+
+## Differences from Upstream
+
+This was forked from [simonw/airtable-export](https://github.com/simonw/airtable-export) and adapted for my own needs. In the interest of simplicity, I:
+
+- made `backup_directory` optional; it defaults to `./airtable-backup-<ISO_DATE>`
+- removed `ndjson`, `yaml`, and `sqlite` options; it always outputs formatted JSON
+- removed `base_id`; it pulls every base the auth token has access to
+- removed `user-agent` option for simplicity (though would be open to re-adding it later, if needed). It makes calls as default of `backup-airtable`
+- removed `schema` option; it always dumps the schema
+- removed `http-read-timeout`; it defaults to a high-enough value of 60 seconds
+- it doesn't flatten the record. the top level keys are `id`, `createdTime`, and `fields`
 
 ## Development
 
-To contribute to this tool, first checkout the code. Then create a new virtual environment:
+This project uses [just](https://github.com/casey/just) for running tasks. First, create a virtualenv:
 
-    cd airtable-export
-    python -mvenv venv
-    source venv/bin/activate
+```shell
+python -m venv .venv
+source .venv/bin/activate
+```
 
-Or if you are using `pipenv`:
-
-    pipenv shell
-
-Now install the dependencies and tests:
-
-    pip install -e '.[test]'
-
-To run the tests:
-
-    pytest
+Then run `just install` to install the project and its development dependencies. At that point, the `backup-airtable` will be available. Run `just` to see all the available commands.
