@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Callable, Optional, TypedDict
+from typing import Optional, TypedDict
 from unittest.mock import patch
 
 import pytest

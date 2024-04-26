@@ -4,7 +4,7 @@ This project uses [SemVer](https://semver.org/) for versioning. Its public APIs,
 
 ## 0.1.0
 
-_released `2024-04-23`_
+_released `2024-04-25`_
 
 - initial fork from [simonw/airtable-export](https://github.com/simonw/airtable-export)
 - rename project
