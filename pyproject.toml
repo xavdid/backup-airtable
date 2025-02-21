@@ -23,7 +23,7 @@ dependencies = ["click==8.1.3", "httpx==0.27.0"]
 [project.optional-dependencies]
 test = ["pytest==7.3.1", "pytest-httpx==0.30.0", "pytest-freezer==0.4.8"]
 release = ["twine==4.0.2", "build==0.10.0"]
-ci = ["pyright==1.1.359", "ruff==0.4.1"]
+ci = ["pyright==1.1.394", "ruff==0.9.7"]
 
 [project.urls]
 "Homepage" = "https://github.com/xavdid/backup-airtable"

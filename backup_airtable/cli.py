@@ -123,21 +123,21 @@ def cli(backup_directory: Path, ignore_table: tuple[str], airtable_token: str):
     print(f" done! Found {num_bases}")
 
     for base_index, base in enumerate(bases):
-        print(f"  ({base_index+1}/{num_bases}) Fetching info for: {base["name"]}")
+        print(f"  ({base_index + 1}/{num_bases}) Fetching info for: {base['name']}")
 
         base_directory = backup_directory / normalize_name(base["name"])
 
-        table_response: TableResponse = fetch(f"/meta/bases/{base["id"]}/tables")
+        table_response: TableResponse = fetch(f"/meta/bases/{base['id']}/tables")
         tables = table_response["tables"]
         num_tables = len(tables)
         for table_index, table in enumerate(tables):
             if table["id"] in ignore_table:
                 print(
-                    f'    ({table_index+1}/{num_tables}) Skipping table: {table["name"]}'
+                    f"    ({table_index + 1}/{num_tables}) Skipping table: {table['name']}"
                 )
                 continue
 
-            print(f'    ({table_index+1}/{num_tables}) Saving table: {table["name"]}')
+            print(f"    ({table_index + 1}/{num_tables}) Saving table: {table['name']}")
 
             table_directory = base_directory / normalize_name(table["name"])
             table_directory.mkdir(parents=True, exist_ok=True)
