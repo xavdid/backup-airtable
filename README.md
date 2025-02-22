@@ -10,11 +10,11 @@ The easiest way to run this is using [pipx](https://pypa.github.io/pipx/):
 pipx install backup-airtable
 ```
 
-<!-- You can also use brew:
+You can also use brew:
 
 ```shell
-brew install ...
-``` -->
+brew install xavdid/projects/backup-airtable
+```
 
 ## Usage
 
