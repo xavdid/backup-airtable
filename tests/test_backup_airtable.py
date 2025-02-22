@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import Callable, Optional, TypedDict
 from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
 from pytest_httpx import HTTPXMock
 
-from backup_airtable.cli import build_client, cli, load_all_records
+from backup_airtable.cli import build_client, cli, load_all_items
 
 
 class TableInfo(TypedDict):
@@ -20,175 +20,232 @@ class BaseInfo(TypedDict):
     tables: list[TableInfo]
 
 
-BASES: list[BaseInfo] = [
-    {
-        "info": {
-            "id": "app123",
-            "name": "Base the First",
-            "permissionLevel": "create",
-        },
-        "tables": [
+type BasesFn = Callable[[], list[BaseInfo]]
+
+
+# todo: use this as a helper, but provide a fixture to get the clean copy directly
+@pytest.fixture
+def get_bases() -> BasesFn:
+    """
+    use a function so that every use of this fixture is brand new and can be mutated safely
+    """
+
+    def _build_bases() -> list[BaseInfo]:
+        return [
             {
                 "info": {
-                    "id": "tbl123",
-                    "name": "Cool Table",
-                    "primaryFieldId": "fld123",
-                    "fields": [
-                        {
-                            "type": "singleLineText",
-                            "id": "fld123",
-                            "name": "Name",
-                        },
-                        {
-                            "type": "checkbox",
-                            "options": {"icon": "check", "color": "greenBright"},
-                            "id": "fld456",
-                            "name": "Done?",
-                        },
-                    ],
+                    "id": "app123",
+                    "name": "Base the First",
+                    "permissionLevel": "create",
                 },
-                "records": [
+                "tables": [
                     {
-                        "id": "rec1",
-                        "fields": {
-                            "name": "This is the name",
-                            "address": "Address line 1\nAddress line 2",
-                            "weird name: what is this?": "hello",
-                            "size": 441,
-                            "some_checkbox": True,
+                        "info": {
+                            "id": "tbl123",
+                            "name": "Cool Table",
+                            "primaryFieldId": "fld123",
+                            "fields": [
+                                {
+                                    "type": "singleLineText",
+                                    "id": "fld123",
+                                    "name": "Name",
+                                },
+                                {
+                                    "type": "checkbox",
+                                    "options": {
+                                        "icon": "check",
+                                        "color": "greenBright",
+                                    },
+                                    "id": "fld456",
+                                    "name": "Done?",
+                                },
+                            ],
                         },
-                        "createdTime": "2020-04-19T18:50:27.000Z",
+                        "records": [
+                            {
+                                "id": "rec1",
+                                "commentCount": 2,
+                                "comments": [
+                                    {
+                                        "author": {
+                                            "email": "email@website.com",
+                                            "id": "usrOrn2etJhbw2dem",
+                                            "name": "Bruce Wayne",
+                                        },
+                                        "createdTime": "2025-02-21T08:05:25.000Z",
+                                        "id": "comx1KUhmPiHYX10w",
+                                        "lastUpdatedTime": None,
+                                        "text": "cool comment!",
+                                    },
+                                    {
+                                        "author": {
+                                            "email": "email@website.com",
+                                            "id": "usrOrn2etJhbw2dem",
+                                            "name": "Bruce Wayne",
+                                        },
+                                        "createdTime": "2025-02-21T08:15:25.000Z",
+                                        "id": "comx1KUhmPiHYX11w",
+                                        "lastUpdatedTime": None,
+                                        "text": "another cool comment!",
+                                    },
+                                ],
+                                "fields": {
+                                    "name": "This is the name",
+                                    "address": "Address line 1\nAddress line 2",
+                                    "weird name: what is this?": "hello",
+                                    "size": 441,
+                                    "some_checkbox": True,
+                                },
+                                "createdTime": "2020-04-19T18:50:27.000Z",
+                            },
+                            {
+                                "id": "rec2",
+                                "commentCount": 0,
+                                "comments": [],
+                                "fields": {
+                                    "name": "This is the name 2",
+                                    "address": "Address line 1\nAddress line 2",
+                                    "weird name: what is this?": "there",
+                                    "size": 442,
+                                    "some_checkbox": False,
+                                },
+                                "createdTime": "2020-04-18T18:58:27.000Z",
+                            },
+                        ],
                     },
                     {
-                        "id": "rec2",
-                        "fields": {
-                            "name": "This is the name 2",
-                            "address": "Address line 1\nAddress line 2",
-                            "weird name: what is this?": "there",
-                            "size": 442,
-                            "some_checkbox": False,
+                        "info": {
+                            "id": "tbl456",
+                            "name": "Tough: name? / neat",
+                            "primaryFieldId": "fld456",
+                            "fields": [
+                                {
+                                    "type": "singleLineText",
+                                    "id": "fld123",
+                                    "name": "Name",
+                                },
+                                {
+                                    "type": "checkbox",
+                                    "options": {
+                                        "icon": "check",
+                                        "color": "greenBright",
+                                    },
+                                    "id": "fld456",
+                                    "name": "Done?",
+                                },
+                            ],
                         },
-                        "createdTime": "2020-04-18T18:58:27.000Z",
+                        "records": [
+                            {
+                                "id": "rec1",
+                                "commentCount": 0,
+                                "comments": [],
+                                "fields": {
+                                    "name": "This is the name",
+                                    "address": "Address line 1\nAddress line 2",
+                                    "weird name: what is this?": "hello",
+                                    "size": 441,
+                                    "some_checkbox": True,
+                                },
+                                "createdTime": "2020-04-18T18:50:27.000Z",
+                            },
+                            {
+                                "id": "rec2",
+                                "commentCount": 0,
+                                "comments": [],
+                                "fields": {
+                                    "name": "This is the name 2",
+                                    "address": "Address line 1\nAddress line 2",
+                                    "weird name: what is this?": "there",
+                                    "size": 442,
+                                    "some_checkbox": False,
+                                },
+                                "createdTime": "2020-04-18T18:58:27.000Z",
+                            },
+                        ],
                     },
                 ],
             },
             {
                 "info": {
-                    "id": "tbl456",
-                    "name": "Tough: name? / neat",
-                    "primaryFieldId": "fld456",
-                    "fields": [
-                        {
-                            "type": "singleLineText",
-                            "id": "fld123",
-                            "name": "Name",
-                        },
-                        {
-                            "type": "checkbox",
-                            "options": {"icon": "check", "color": "greenBright"},
-                            "id": "fld456",
-                            "name": "Done?",
-                        },
-                    ],
+                    "id": "app123",
+                    "name": "Base the Second",
+                    "permissionLevel": "create",
                 },
-                "records": [
+                "tables": [
                     {
-                        "id": "rec1",
-                        "fields": {
-                            "name": "This is the name",
-                            "address": "Address line 1\nAddress line 2",
-                            "weird name: what is this?": "hello",
-                            "size": 441,
-                            "some_checkbox": True,
+                        "info": {
+                            "id": "tbl789",
+                            "name": "Cool Table",
+                            "primaryFieldId": "fld123",
+                            "fields": [
+                                {
+                                    "type": "singleLineText",
+                                    "id": "fld123",
+                                    "name": "Name",
+                                },
+                                {
+                                    "type": "checkbox",
+                                    "options": {
+                                        "icon": "check",
+                                        "color": "greenBright",
+                                    },
+                                    "id": "fld456",
+                                    "name": "Done?",
+                                },
+                            ],
                         },
-                        "createdTime": "2020-04-18T18:50:27.000Z",
-                    },
-                    {
-                        "id": "rec2",
-                        "fields": {
-                            "name": "This is the name 2",
-                            "address": "Address line 1\nAddress line 2",
-                            "weird name: what is this?": "there",
-                            "size": 442,
-                            "some_checkbox": False,
-                        },
-                        "createdTime": "2020-04-18T18:58:27.000Z",
+                        "records": [
+                            {
+                                "id": "rec1",
+                                "commentCount": 0,
+                                "comments": [],
+                                "fields": {
+                                    "name": "This is the name",
+                                    "address": "Address line 1\nAddress line 2",
+                                    "weird name: what is this?": "hello",
+                                    "size": 441,
+                                    "some_checkbox": True,
+                                },
+                                "createdTime": "2020-04-18T18:50:27.000Z",
+                            },
+                            {
+                                "id": "rec2",
+                                "commentCount": 0,
+                                "comments": [],
+                                "fields": {
+                                    "name": "This is the name 2",
+                                    "address": "Address line 1\nAddress line 2",
+                                    "weird name: what is this?": "there",
+                                    "size": 442,
+                                    "some_checkbox": False,
+                                },
+                                "createdTime": "2020-04-18T18:58:27.000Z",
+                            },
+                        ],
                     },
                 ],
             },
-        ],
-    },
-    {
-        "info": {
-            "id": "app123",
-            "name": "Base the Second",
-            "permissionLevel": "create",
-        },
-        "tables": [
-            {
-                "info": {
-                    "id": "tbl789",
-                    "name": "Cool Table",
-                    "primaryFieldId": "fld123",
-                    "fields": [
-                        {
-                            "type": "singleLineText",
-                            "id": "fld123",
-                            "name": "Name",
-                        },
-                        {
-                            "type": "checkbox",
-                            "options": {"icon": "check", "color": "greenBright"},
-                            "id": "fld456",
-                            "name": "Done?",
-                        },
-                    ],
-                },
-                "records": [
-                    {
-                        "id": "rec1",
-                        "fields": {
-                            "name": "This is the name",
-                            "address": "Address line 1\nAddress line 2",
-                            "weird name: what is this?": "hello",
-                            "size": 441,
-                            "some_checkbox": True,
-                        },
-                        "createdTime": "2020-04-18T18:50:27.000Z",
-                    },
-                    {
-                        "id": "rec2",
-                        "fields": {
-                            "name": "This is the name 2",
-                            "address": "Address line 1\nAddress line 2",
-                            "weird name: what is this?": "there",
-                            "size": 442,
-                            "some_checkbox": False,
-                        },
-                        "createdTime": "2020-04-18T18:58:27.000Z",
-                    },
-                ],
-            },
-        ],
-    },
-]
+        ]
+
+    return _build_bases
 
 
 @pytest.fixture
-def mock_bases(httpx_mock):
+def mock_bases(httpx_mock, get_bases: BasesFn):
     httpx_mock.add_response(
         url="https://api.airtable.com/v0/meta/bases",
         match_headers={
             "Authorization": "Bearer pat123.456",
             "user-agent": "backup-airtable",
         },
-        json={"bases": [b["info"] for b in BASES]},
+        json={"bases": [b["info"] for b in get_bases()]},
     )
 
 
 @pytest.fixture
-def mock_tables(httpx_mock: HTTPXMock):
-    for b in BASES:
+def mock_tables(httpx_mock: HTTPXMock, get_bases: BasesFn, mock_bases):  # noqa: ARG001
+    for b in get_bases():
         httpx_mock.add_response(
             url=f"https://api.airtable.com/v0/meta/bases/{b['info']['id']}/tables",
             match_headers={"Authorization": "Bearer pat123.456"},
@@ -197,16 +254,30 @@ def mock_tables(httpx_mock: HTTPXMock):
 
 
 @pytest.fixture
-def mock_records(httpx_mock):
-    def mock_calls(ignored_tables: Optional[list[str]] = None):
+def mock_records(httpx_mock, mock_tables, get_bases: BasesFn):  # noqa: ARG001
+    def mock_calls(ignored_tables: Optional[list[str]] = None, with_comments=False):
         if ignored_tables is None:
             ignored_tables = []
-        for b in BASES:
+        for b in get_bases():
             for t in b["tables"]:
                 if t["info"]["id"] in ignored_tables:
                     continue
+
+                records = []
+
+                for r in t["records"]:
+                    # comments are _never_ in the root response
+                    comments = r.pop("comments")
+                    if with_comments and comments:
+                        httpx_mock.add_response(
+                            url=f"https://api.airtable.com/v0/{b['info']['id']}/{t['info']['id']}/{r['id']}/comments",
+                            match_headers={"Authorization": "Bearer pat123.456"},
+                            json={"comments": list(reversed(comments))},
+                        )
+                    records.append(r)
+
                 httpx_mock.add_response(
-                    url=f"https://api.airtable.com/v0/{b['info']['id']}/{t['info']['id']}",
+                    url=f"https://api.airtable.com/v0/{b['info']['id']}/{t['info']['id']}?recordMetadata=commentCount",
                     match_headers={"Authorization": "Bearer pat123.456"},
                     json={"records": t["records"]},
                 )
@@ -214,15 +285,28 @@ def mock_records(httpx_mock):
     return mock_calls
 
 
+@pytest.fixture
+def bases_no_comments(get_bases: BasesFn):
+    bases = get_bases()
+
+    for b in bases:
+        for t in b["tables"]:
+            for r in t["records"]:
+                r.pop("comments")
+
+    return bases
+
+
 def test_version():
     runner = CliRunner()
     with runner.isolated_filesystem():
         result = runner.invoke(cli, ["--version"])
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert result.output.startswith("cli, version ")
 
 
-def test_full_backup(tmpdir, mock_bases, mock_tables, mock_records):
+def test_full_backup(tmpdir, mock_records, bases_no_comments: list[BaseInfo]):
+    bases = bases_no_comments
     mock_records()
 
     runner = CliRunner()
@@ -233,13 +317,13 @@ def test_full_backup(tmpdir, mock_bases, mock_tables, mock_records):
         json.loads(
             Path(tmpdir / "Base the First" / "Cool Table" / "schema.json").read_text()
         )
-        == BASES[0]["tables"][0]["info"]
+        == bases[0]["tables"][0]["info"]
     )
     assert json.loads(
         Path(tmpdir / "Base the First" / "Cool Table" / "records.json").read_text()
     ) == [
-        BASES[0]["tables"][0]["records"][1],
-        BASES[0]["tables"][0]["records"][0],
+        bases[0]["tables"][0]["records"][1],
+        bases[0]["tables"][0]["records"][0],
     ]  # sorted by creation date
     assert (
         json.loads(
@@ -247,24 +331,75 @@ def test_full_backup(tmpdir, mock_bases, mock_tables, mock_records):
                 tmpdir / "Base the First" / "Tough- name? | neat" / "schema.json"
             ).read_text()
         )
-        == BASES[0]["tables"][1]["info"]
+        == bases[0]["tables"][1]["info"]
     )
     assert (
         json.loads(
             Path(tmpdir / "Base the Second" / "Cool Table" / "schema.json").read_text()
         )
-        == BASES[1]["tables"][0]["info"]
+        == bases[1]["tables"][0]["info"]
     )
     assert (
         json.loads(
             Path(tmpdir / "Base the Second" / "Cool Table" / "records.json").read_text()
         )
-        == BASES[1]["tables"][0]["records"]
+        == bases[1]["tables"][0]["records"]
     )
 
 
-def test_skipping_tables(tmpdir, mock_bases, mock_tables, mock_records):
+def test_full_backup_with_comments(
+    tmpdir, mock_records, get_bases: BasesFn, httpx_mock: HTTPXMock
+):
+    bases = get_bases()
+    mock_records(with_comments=True)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [str(tmpdir), "--include-comments"],
+        env={"AIRTABLE_TOKEN": "pat123.456"},
+    )
+    print(result.stdout)
+    print(httpx_mock.get_requests())
+
+    assert result.exit_code == 0
+
+    assert json.loads(
+        Path(tmpdir / "Base the First" / "Cool Table" / "records.json").read_text()
+    ) == [
+        bases[0]["tables"][0]["records"][1],
+        bases[0]["tables"][0]["records"][0],
+    ]  # sorted by creation date
+
+    assert bases[0]["tables"][0]["records"][0]["comments"] == [
+        {
+            "author": {
+                "email": "email@website.com",
+                "id": "usrOrn2etJhbw2dem",
+                "name": "Bruce Wayne",
+            },
+            "createdTime": "2025-02-21T08:05:25.000Z",
+            "id": "comx1KUhmPiHYX10w",
+            "lastUpdatedTime": None,
+            "text": "cool comment!",
+        },
+        {
+            "author": {
+                "email": "email@website.com",
+                "id": "usrOrn2etJhbw2dem",
+                "name": "Bruce Wayne",
+            },
+            "createdTime": "2025-02-21T08:15:25.000Z",
+            "id": "comx1KUhmPiHYX11w",
+            "lastUpdatedTime": None,
+            "text": "another cool comment!",
+        },
+    ]
+
+
+def test_skipping_tables(tmpdir, mock_records, bases_no_comments):
     mock_records(["tbl123", "tbl789"])
+    bases = bases_no_comments
 
     runner = CliRunner()
     result = runner.invoke(
@@ -288,7 +423,7 @@ def test_skipping_tables(tmpdir, mock_bases, mock_tables, mock_records):
                 tmpdir / "Base the First" / "Tough- name? | neat" / "schema.json"
             ).read_text()
         )
-        == BASES[0]["tables"][1]["info"]
+        == bases[0]["tables"][1]["info"]
     )
     assert (
         json.loads(
@@ -296,13 +431,13 @@ def test_skipping_tables(tmpdir, mock_bases, mock_tables, mock_records):
                 tmpdir / "Base the First" / "Tough- name? | neat" / "records.json"
             ).read_text()
         )
-        == BASES[0]["tables"][1]["records"]
+        == bases[0]["tables"][1]["records"]
     )
     assert not Path(tmpdir / "Base the Second" / "Cool Table").exists()
 
 
 @pytest.mark.freeze_time("2024-04-24")
-def test_default_path(tmpdir, mock_bases, mock_tables, mock_records):
+def test_default_path(tmpdir, mock_records):
     mock_records()
     runner = CliRunner()
     with runner.isolated_filesystem(str(tmpdir)) as wd:
@@ -318,6 +453,16 @@ def test_airtable_export_401_error(httpx_mock):
     result = runner.invoke(cli, ["--airtable-token", "pat123.456"])
     assert result.exit_code == 1
     assert "401 Unauthorized" in result.output
+    assert "HINT: Ensure" not in result.output
+
+
+def test_airtable_bad_permissions(httpx_mock):
+    httpx_mock.add_response(status_code=403)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--airtable-token", "pat123.456"])
+    assert result.exit_code == 1
+    assert "403 Forbidden" in result.output
+    assert "HINT: Ensure" in result.output
 
 
 @patch("backup_airtable.cli.REQUEST_DELAY", new=0)
@@ -327,23 +472,24 @@ class TestPagination:
             "Authorization": "Bearer pat456.789",
             "user-agent": "backup-airtable",
         }
+
         httpx_mock.add_response(
-            url="https://api.airtable.com/v0/app123/tbl123",
+            url="https://api.airtable.com/v0/app123/tbl123?recordMetadata=commentCount",
             json={"records": [{"id": 1}], "offset": "abc/123"},
             match_headers=headers,
         )
         httpx_mock.add_response(
-            url="https://api.airtable.com/v0/app123/tbl123?offset=abc%2F123",
+            url="https://api.airtable.com/v0/app123/tbl123?recordMetadata=commentCount&offset=abc%2F123",
             json={"records": [{"id": 2}], "offset": "abc/456"},
             match_headers=headers,
         )
         # last page no offset
         httpx_mock.add_response(
-            url="https://api.airtable.com/v0/app123/tbl123?offset=abc%2F456",
+            url="https://api.airtable.com/v0/app123/tbl123?recordMetadata=commentCount&offset=abc%2F456",
             json={"records": [{"id": 3}]},
             match_headers=headers,
         )
 
         fetch = build_client("pat456.789")
-        records = load_all_records(fetch, "app123", "tbl123")
+        records = load_all_items(fetch, "app123", "tbl123")
         assert list(records) == [{"id": 1}, {"id": 2}, {"id": 3}]
