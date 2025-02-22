@@ -10,11 +10,11 @@ The easiest way to run this is using [pipx](https://pypa.github.io/pipx/):
 pipx install backup-airtable
 ```
 
-You can also use brew:
+<!-- You can also use brew:
 
 ```shell
-brew install xavdid/projects/backup-airtable
-```
+brew install ...
+``` -->
 
 ## Usage
 
@@ -48,7 +48,7 @@ Ensure it has the following scopes:
 
 - `data.records:read`
 - `schema.bases:read`
-- if you're going to export comments (see TKTK):
+- if you're going to export comments (see [comments](#comments)):
   - `data.recordComments:read`
 
 You can give it access to as many or as few bases as you'd like. Everything the token has access to will be backed up.

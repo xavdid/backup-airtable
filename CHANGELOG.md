@@ -7,7 +7,6 @@ This project uses [SemVer](https://semver.org/) for versioning. Its public APIs,
 _released `TKTK`_
 
 - added support for exporting comments
-- ❗ renamed CLI arg: `ignore_table` -> `ignore-table`
 
 ## 0.1.0
 
