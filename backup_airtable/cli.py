@@ -212,4 +212,3 @@ def cli(
 
             write_json(table_directory, "records", records)
             print("\n      wrote records.json")
-        # break  # FIXME
