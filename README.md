@@ -27,18 +27,22 @@ Usage: backup-airtable [OPTIONS] [BACKUP_DIRECTORY]
 
 Options:
   --version              Show the version and exit.
-  --ignore_table TEXT    Table id(s) to ignore when backing up.
+  --ignore-table TEXT    Table id(s) to ignore when backing up.
   --airtable-token TEXT  Airtable Access Token  [required]
+  --include-comments     Whether to include row comments in the backup. May
+                         slow down the backup considerably if many rows have
+                         backups.
   --help                 Show this message and exit.
 ```
 
-You'll likely only need `ignore_table` (which you can specify multiple times) to ignore specific tables from bases you otherwise want to include.
+You'll likely only need `ignore-table` (which you can specify multiple times) to ignore specific tables from bases you otherwise want to include.
 
 ### Examples
 
 - `backup-airtable`
+- `backup-airtable --include-comments`
 - `backup-airtable some_backup_folder`
-- `backup_airtable --ignore_table tbl123 --ignore_table tbl456`
+- `backup_airtable --ignore-table tbl123 --ignore-table tbl456`
 
 ## Authentication
 

@@ -432,9 +432,9 @@ def test_skipping_tables(tmp_path, mock_records, bases_no_comments, invoke: Invo
     mock_records(["tbl123", "tbl789"])
     invoke(
         [
-            "--ignore_table",
+            "--ignore-table",
             "tbl123",
-            "--ignore_table",
+            "--ignore-table",
             "tbl789",
         ]
     )

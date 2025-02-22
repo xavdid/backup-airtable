@@ -121,7 +121,7 @@ def load_all_items(
     default=lambda: Path.cwd() / f"airtable-backup-{date.today()}",
 )
 @click.option(
-    "--ignore_table",
+    "--ignore-table",
     type=str,
     multiple=True,
     help="Table id(s) to ignore when backing up.",
