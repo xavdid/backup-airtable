@@ -165,7 +165,6 @@ def cli(
         tables = table_response["tables"]
         num_tables = len(tables)
         for table_index, table in enumerate(tables):
-            # print(table)
             if table["id"] in ignore_table:
                 print(
                     f"    ({table_index + 1}/{num_tables}) Skipping table: {table['name']}"
