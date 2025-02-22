@@ -48,6 +48,8 @@ Ensure it has the following scopes:
 
 - `data.records:read`
 - `schema.bases:read`
+- if you're going to export comments (see [comments](#comments)):
+  - `data.recordComments:read`
 
 You can give it access to as many or as few bases as you'd like. Everything the token has access to will be backed up.
 
@@ -111,6 +113,26 @@ The contents of each file is the raw API response for [the table's schema](https
         ]
       },
       "type": "singleSelect"
+    },
+    {
+      "id": "fldpMVjIrO1QjFeAy",
+      "name": "Is Available?",
+      "options": {
+        "formula": "AND(IF({fldGC6t3qWTFCESvA}, {fldGC6t3qWTFCESvA}<={fld4hmOueoB5ah8Io}, 1), {fld4gls5vBed7NBOP} = 0)",
+        "isValid": true,
+        "referencedFieldIds": [
+          "fldGC6t3qWTFCESvA",
+          "fld4hmOueoB5ah8Io",
+          "fld4gls5vBed7NBOP"
+        ],
+        "result": {
+          "options": {
+            "precision": 0
+          },
+          "type": "number"
+        }
+      },
+      "type": "formula"
     }
   ],
   "id": "tblvcNVpUk07pRxUQ",
@@ -136,27 +158,63 @@ and the [records themselves](https://airtable.com/developers/web/api/list-record
 ```json
 [
   {
+    "commentCount": 0,
     "createdTime": "2017-09-19T06:21:48.000Z",
     "fields": {
       "Name": "Libertalia: Winds of Galecrest",
-      "Style": "Competitive"
+      "Style": "Competitive",
+      "Is Available?": 1
     },
     "id": "rec0wIiSnMutUfoTY"
   },
   {
+    "commentCount": 0,
     "createdTime": "2023-09-19T06:20:20.000Z",
     "fields": {
       "Name": "Hanabi",
-      "Style": "Cooperative"
+      "Style": "Cooperative",
+      "Is Available?": 0
     },
     "id": "rec48RFqGw8hAmZFY"
   }
 ]
 ```
 
+### Comments
+
+Each row in Airtable can have comments, but downloading them takes an extra API call _per row_. For bases with lots of rows with comments, this can dramatically slow down the backup.
+
+Comments will be included, oldest to newest, on each row:
+
+```json
+  {
+    "commentCount": 1,
+    "comments": [
+      {
+        "author": {
+          "email": "email@website.com",
+          "id": "usrOrn2etJhbw2dem",
+          "name": "Bruce Wayne"
+        },
+        "createdTime": "2025-02-21T08:05:25.000Z",
+        "id": "comx1KUhmPiHYX10w",
+        "lastUpdatedTime": null,
+        "text": "cool comment!"
+      }
+    ],
+    "createdTime": "2021-05-24T04:19:13.000Z",
+    "fields": {
+      "Name": "Vantage",
+      "Style": "Cooperative",
+      "Is Available?": 0
+    },
+    "id": "recKPmZ4DkjYyFrV4"
+  },
+```
+
 ## Differences from Upstream
 
-This was forked from [simonw/airtable-export](https://github.com/simonw/airtable-export) and adapted for my own needs. In the interest of simplicity, I:
+This was originally forked from [simonw/airtable-export](https://github.com/simonw/airtable-export) and has since diverged. In the interest of simplicity & my own needs, I:
 
 - made `backup_directory` optional; it defaults to `./airtable-backup-<ISO_DATE>`
 - removed `ndjson`, `yaml`, and `sqlite` options; it always outputs formatted JSON

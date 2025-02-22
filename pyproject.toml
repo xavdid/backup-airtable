@@ -23,7 +23,7 @@ dependencies = ["click==8.1.3", "httpx==0.27.0"]
 [project.optional-dependencies]
 test = ["pytest==7.3.1", "pytest-httpx==0.30.0", "pytest-freezer==0.4.8"]
 release = ["twine==4.0.2", "build==0.10.0"]
-ci = ["pyright==1.1.359", "ruff==0.4.1"]
+ci = ["pyright==1.1.394", "ruff==0.9.7"]
 
 [project.urls]
 "Homepage" = "https://github.com/xavdid/backup-airtable"
@@ -42,6 +42,39 @@ build-backend = "flit_core.buildapi"
 [tool.pyright]
 
 [tool.ruff.lint]
-select = ["E", "F", "I001"] # defaults & isort
-ignore = ["E501"]
-unfixable = ["F401"]
+select = [
+  "E",    # PEP8 recommendations
+  "F",    # bugs
+  "I001", # import sorting
+  "BLE",  # catching root Exception
+  "A",    # built-in shadowing
+  "C4",   # unnecessary comprehensions
+  "ISC",  # implicit string concat
+  "PIE",  # misc useful lints
+  "Q",    # better quoting behavior
+  "RSE",  # no parens on exceptions that lack args
+  "RET",  # more correct return behavior
+  "SIM",  # general style things
+  "TC",   # type-only imports should be in a typecheck block
+  "ARG",  # unused args
+  "PTH",  # use pathlib
+  "FLY",  # short "".join calls
+  "PERF", # performance hints
+  "PL",   # pylint, general recommendations
+  # "RUF", # these are a little picky for me
+]
+
+ignore = [
+  "E501",    # skip enforcing line length
+  "E741",    # ignore short variable names
+  "PLR2004", # magic values
+  "PLR0911", # too many returns
+  "PLR0912", # too many branches
+  "PLR0913", # too many arguments
+  'Q000',    # single quotes; handled by formatter
+]
+
+unfixable = [
+  "F401", # don't remove unused imports
+  "F841", # don't remove unused variables
+]

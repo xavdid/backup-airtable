@@ -2,17 +2,17 @@ import json
 import time
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, Iterable, TypedDict
-from urllib.parse import urlencode
+from typing import Any, Callable, Iterable, Optional, Protocol, TypedDict
 
 import click
 import httpx
-from httpx import HTTPError
+from httpx import HTTPError, HTTPStatusError
 
 # airtable occasionally has read timeouts when doing a big export
 # see https://github.com/simonw/airtable-export/pull/14
 timeout = httpx.Timeout(5, read=60)
 http_client = httpx.Client(timeout=timeout)
+# Rate limit is 5req / s. With some overhead for connection time, this is ~ as fast as we can go without hitting limits.
 REQUEST_DELAY = 0.2
 
 
@@ -46,11 +46,17 @@ def write_json(folder: Path, filename: str, data):
     (folder / f"{filename}.json").write_text(json.dumps(data, indent=2, sort_keys=True))
 
 
-fetch_fn = Callable[[str], Any]
+class FetchFn(Protocol):
+    def __call__(
+        self, path: str, params: Optional[dict[str, str]] = None, /
+    ) -> Any: ...
 
 
-def build_client(airtable_token: str) -> fetch_fn:
-    def _api_request(api_path: str):
+fetch_fn = Callable[[str, Optional[dict[str, str]]], Any]
+
+
+def build_client(airtable_token: str) -> FetchFn:
+    def _api_request(api_path: str, params: Optional[dict[str, str]] = None):
         assert api_path.startswith("/")
         assert "api.airtable.com" not in api_path
 
@@ -61,29 +67,46 @@ def build_client(airtable_token: str) -> fetch_fn:
                     "Authorization": f"Bearer {airtable_token}",
                     "user-agent": "backup-airtable",
                 },
+                # remove `None` keys from params dict to make calling this easier
+                params={k: v for k, v in (params or {}).items() if v is not None},
             )
             response.raise_for_status()
-        except HTTPError as e:
-            raise click.ClickException(str(e))
+            return response.json()
 
-        return response.json()
+        except HTTPError as e:
+            print("\n")
+
+            message = f"{str(e)}\n"
+
+            # permissions issue would be the trickiest to catch, so flag those especially
+            if isinstance(e, HTTPStatusError) and e.response.status_code == 403:
+                message += "\nHINT: Ensure your token has the correct permissions!\n"
+
+            raise click.ClickException(message)
 
     return _api_request
 
 
-def load_all_records(fetch: fetch_fn, base_id: str, table_id: str) -> Iterable:
-    first = True
+def load_all_items(
+    fetch: FetchFn, base_id: str, table_id: str, record_id: Optional[str] = None
+) -> Iterable:
+    first = True  # no do...while, but can't set `offset` to something because it gets passed to airtable
     offset = None
     while first or offset:
         first = False
         path = f"/{base_id}/{table_id}"
-        if offset:
-            path += "?" + urlencode({"offset": offset})
 
-        data = fetch(path)
+        if record_id:
+            path += f"/{record_id}/comments"
+
+        data = fetch(
+            path,
+            {"offset": offset, "recordMetadata": None if record_id else "commentCount"},
+        )
         print(".", end="", flush=True)  # little progress bar-type thing
         offset = data.get("offset")
-        yield from data["records"]
+        # TODO: decouple this from record_id? or split out to separate functions?
+        yield from data["comments" if record_id else "records"]
         if offset:
             time.sleep(REQUEST_DELAY)
 
@@ -109,8 +132,19 @@ def load_all_records(fetch: fetch_fn, base_id: str, table_id: str) -> Iterable:
     help="Airtable Access Token",
     required=True,
 )
-def cli(backup_directory: Path, ignore_table: tuple[str], airtable_token: str):
+@click.option(
+    "--include-comments",
+    help="Whether to include row comments in the backup. May slow down the backup considerably if many rows have backups.",
+    is_flag=True,
+)
+def cli(
+    backup_directory: Path,
+    ignore_table: tuple[str],
+    airtable_token: str,
+    include_comments: bool,
+):
     "Save data from Airtable to a series of local JSON files / folders"
+
     fetch = build_client(airtable_token)
 
     print(f"Backing up to {backup_directory}")
@@ -123,21 +157,22 @@ def cli(backup_directory: Path, ignore_table: tuple[str], airtable_token: str):
     print(f" done! Found {num_bases}")
 
     for base_index, base in enumerate(bases):
-        print(f"  ({base_index+1}/{num_bases}) Fetching info for: {base["name"]}")
+        print(f"  ({base_index + 1}/{num_bases}) Fetching info for: {base['name']}")
 
         base_directory = backup_directory / normalize_name(base["name"])
 
-        table_response: TableResponse = fetch(f"/meta/bases/{base["id"]}/tables")
+        table_response: TableResponse = fetch(f"/meta/bases/{base['id']}/tables")
         tables = table_response["tables"]
         num_tables = len(tables)
         for table_index, table in enumerate(tables):
+            # print(table)
             if table["id"] in ignore_table:
                 print(
-                    f'    ({table_index+1}/{num_tables}) Skipping table: {table["name"]}'
+                    f"    ({table_index + 1}/{num_tables}) Skipping table: {table['name']}"
                 )
                 continue
 
-            print(f'    ({table_index+1}/{num_tables}) Saving table: {table["name"]}')
+            print(f"    ({table_index + 1}/{num_tables}) Saving table: {table['name']}")
 
             table_directory = base_directory / normalize_name(table["name"])
             table_directory.mkdir(parents=True, exist_ok=True)
@@ -146,8 +181,34 @@ def cli(backup_directory: Path, ignore_table: tuple[str], airtable_token: str):
 
             print("      loading records", end="", flush=True)
             records = sorted(
-                load_all_records(fetch, base["id"], table["id"]),
+                load_all_items(fetch, base["id"], table["id"]),
                 key=lambda r: r["createdTime"],
             )
+
+            if include_comments:
+                # only log if we're fetching any comments for this table
+                if num_records_with_comments := sum(
+                    1 for r in records if r.get("commentCount")
+                ):
+                    print(
+                        f"\n      loading comments for {num_records_with_comments} record(s)",
+                        end="",
+                        flush=True,
+                    )
+                else:
+                    print("\n      no comments for this table", flush=True, end="")
+
+                # but, always add the empty lists
+                for record in records:
+                    comments = []
+                    if record.get("commentCount"):
+                        comments = sorted(
+                            load_all_items(
+                                fetch, base["id"], table["id"], record["id"]
+                            ),
+                            key=lambda r: r["createdTime"],
+                        )
+                    record["comments"] = comments
+
             write_json(table_directory, "records", records)
             print("\n      wrote records.json")
