@@ -7,7 +7,7 @@ import pytest
 from click.testing import CliRunner, Result
 from pytest_httpx import HTTPXMock
 
-from backup_airtable.cli import build_client, cli, load_all_items
+from backup_airtable.cli import build_client, cli, load_all_comments, load_all_records
 
 
 class TableInfo(TypedDict):
@@ -485,7 +485,7 @@ def test_airtable_bad_permissions(httpx_mock, invoke: InvokeFn):
 
 @patch("backup_airtable.cli.REQUEST_DELAY", new=0)
 class TestPagination:
-    def test_paging(self, httpx_mock: HTTPXMock):
+    def test_paging_records(self, httpx_mock: HTTPXMock):
         headers = {
             "Authorization": "Bearer pat456.789",
             "user-agent": "backup-airtable",
@@ -501,13 +501,40 @@ class TestPagination:
             json={"records": [{"id": 2}], "offset": "abc/456"},
             match_headers=headers,
         )
-        # last page no offset
         httpx_mock.add_response(
             url="https://api.airtable.com/v0/app123/tbl123?recordMetadata=commentCount&offset=abc%2F456",
+            # last page no offset
             json={"records": [{"id": 3}]},
             match_headers=headers,
         )
 
         fetch = build_client("pat456.789")
-        records = load_all_items(fetch, "app123", "tbl123")
+        records = load_all_records(fetch, "app123", "tbl123")
         assert list(records) == [{"id": 1}, {"id": 2}, {"id": 3}]
+
+    def test_paging_comments(self, httpx_mock: HTTPXMock):
+        headers = {
+            "Authorization": "Bearer pat456.789",
+            "user-agent": "backup-airtable",
+        }
+
+        httpx_mock.add_response(
+            url="https://api.airtable.com/v0/app123/tbl123/rec123/comments",
+            json={"comments": [{"id": 1}], "offset": "abc/123"},
+            match_headers=headers,
+        )
+        httpx_mock.add_response(
+            url="https://api.airtable.com/v0/app123/tbl123/rec123/comments?offset=abc%2F123",
+            json={"comments": [{"id": 2}], "offset": "abc/456"},
+            match_headers=headers,
+        )
+        httpx_mock.add_response(
+            url="https://api.airtable.com/v0/app123/tbl123/rec123/comments?offset=abc%2F456",
+            # last page no offset
+            json={"comments": [{"id": 3}]},
+            match_headers=headers,
+        )
+
+        fetch = build_client("pat456.789")
+        comments = load_all_comments(fetch, "app123", "tbl123", "rec123")
+        assert list(comments) == [{"id": 1}, {"id": 2}, {"id": 3}]

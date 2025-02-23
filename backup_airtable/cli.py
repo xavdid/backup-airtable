@@ -2,7 +2,7 @@ import json
 import time
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional, Protocol, TypedDict
+from typing import Any, Callable, Iterable, Literal, Optional, Protocol, TypedDict
 
 import click
 import httpx
@@ -87,28 +87,43 @@ def build_client(airtable_token: str) -> FetchFn:
     return _api_request
 
 
-def load_all_items(
-    fetch: FetchFn, base_id: str, table_id: str, record_id: Optional[str] = None
+def _load_all_items(
+    fetch: FetchFn,
+    path: str,
+    sub_key: Literal["comments", "records"],
+    params: Optional[dict[str, str]] = None,
 ) -> Iterable:
-    first = True  # no do...while, but can't set `offset` to something because it gets passed to airtable
+    if params is None:
+        params = {}
+
+    # no do...while, but can't set `offset` to something because it gets passed to airtable
+    first = True
     offset = None
     while first or offset:
         first = False
-        path = f"/{base_id}/{table_id}"
 
-        if record_id:
-            path += f"/{record_id}/comments"
-
-        data = fetch(
-            path,
-            {"offset": offset, "recordMetadata": None if record_id else "commentCount"},
-        )
+        data = fetch(path, {"offset": offset, **params})
         print(".", end="", flush=True)  # little progress bar-type thing
         offset = data.get("offset")
-        # TODO: decouple this from record_id? or split out to separate functions?
-        yield from data["comments" if record_id else "records"]
+
+        # each response has info, plus a top-level key with a list of results
+        yield from data[sub_key]
         if offset:
             time.sleep(REQUEST_DELAY)
+
+
+def load_all_records(fetch: FetchFn, base_id: str, table_id: str) -> Iterable:
+    return _load_all_items(
+        fetch, f"/{base_id}/{table_id}", "records", {"recordMetadata": "commentCount"}
+    )
+
+
+def load_all_comments(
+    fetch: FetchFn, base_id: str, table_id: str, record_id: str
+) -> Iterable:
+    return _load_all_items(
+        fetch, f"/{base_id}/{table_id}/{record_id}/comments", "comments"
+    )
 
 
 @click.command()
@@ -180,7 +195,7 @@ def cli(
 
             print("      loading records", end="", flush=True)
             records = sorted(
-                load_all_items(fetch, base["id"], table["id"]),
+                load_all_records(fetch, base["id"], table["id"]),
                 key=lambda r: r["createdTime"],
             )
 
@@ -202,7 +217,7 @@ def cli(
                     comments = []
                     if record.get("commentCount"):
                         comments = sorted(
-                            load_all_items(
+                            load_all_comments(
                                 fetch, base["id"], table["id"], record["id"]
                             ),
                             key=lambda r: r["createdTime"],
