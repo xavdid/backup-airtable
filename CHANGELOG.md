@@ -4,10 +4,10 @@ This project uses [SemVer](https://semver.org/) for versioning. Its public APIs,
 
 ## 0.2.0
 
-_released `TKTK`_
+_released `2025-02-22`_
 
-- added support for exporting comments
-- ❗ renamed CLI arg: `ignore_table` -> `ignore-table`
+- added support for exporting comments (using the `--include-comments` flag); see [docs](https://github.com/xavdid/backup-airtable?tab=readme-ov-file#comments).
+- ❗ renamed CLI arg: `--ignore_table` -> `--ignore-table`
 
 ## 0.1.0
 
